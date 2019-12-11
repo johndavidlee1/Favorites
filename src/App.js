@@ -2,163 +2,25 @@ import React, { useState, useEffect } from "react";
 import AppBar from "@material-ui/core/AppBar";
 import Toolbar from "@material-ui/core/Toolbar";
 import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
-import TextField from "@material-ui/core/TextField";
+import PersonIcon from "@material-ui/icons/Person";
 import Button from "@material-ui/core/Button";
 import IconButton from "@material-ui/core/IconButton";
-import MenuIcon from "@material-ui/icons/Menu";
-import Drawer from "@material-ui/core/Drawer";
+import PublicIcon from "@material-ui/icons/Public";
+import AddIcon from "@material-ui/icons/Add";
 import { Link } from "react-router-dom";
-import { auth } from "./firebase";
-
-export function SignIn(props) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(u => {
-      if (u) {
-        props.history.push("/app");
-      }
-      //do something
-    });
-    return unsubscribe;
-  }, [props.history]);
-
-  const handleSignIn = () => {
-    auth
-      .signInWithEmailAndPassword(email, password)
-      .then(() => {})
-      .catch(error => {
-        alert(error.message);
-      });
-  };
-
-  return (
-    <div>
-      <AppBar position="static" color="primary">
-        <Toolbar>
-          <Typography variant="h6" color="inherit">
-            Sign In
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <Paper style={{ width: "480px", marginTop: "50px", padding: "30px" }}>
-          <TextField
-            placeholder="Email"
-            fullWidth={true}
-            value={email}
-            onChange={e => {
-              setEmail(e.target.value);
-            }}
-          />
-          <TextField
-            type="Password"
-            placeholder="Password"
-            fullWidth={true}
-            style={{ marginTop: "30px" }}
-            value={password}
-            onChange={e => {
-              setPassword(e.target.value);
-            }}
-          />
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: "30px"
-            }}
-          >
-            <Typography>
-              Don't have an account? <Link to="/signup">Sign up!</Link>
-            </Typography>
-            <Button color="primary" variant="contained" onClick={handleSignIn}>
-              Sign In
-            </Button>
-          </div>
-        </Paper>
-      </div>
-    </div>
-  );
-}
-
-export function SignUp(props) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(u => {
-      if (u) {
-        props.history.push("/app");
-      }
-      //do something
-    });
-    return unsubscribe;
-  }, [props.history]);
-
-  const handleSignUp = () => {
-    auth
-      .createUserWithEmailAndPassword(email, password)
-      .then(() => {})
-      .catch(error => {
-        alert(error.message);
-      });
-  };
-  return (
-    <div>
-      <AppBar position="static" color="primary">
-        <Toolbar>
-          <Typography variant="h6" color="inherit">
-            Sign Up
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <Paper style={{ width: "480px", marginTop: "50px", padding: "30px" }}>
-          <TextField
-            placeholder="Email"
-            fullWidth={true}
-            value={email}
-            onChange={e => {
-              setEmail(e.target.value);
-            }}
-          />
-          <TextField
-            type="password"
-            placeholder="Password"
-            fullWidth={true}
-            style={{ marginTop: "30px" }}
-            value={password}
-            onChange={e => {
-              setPassword(e.target.value);
-            }}
-          />
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: "30px"
-            }}
-          >
-            <Typography>
-              Already have an account? <Link to="/">Sign In!</Link>
-            </Typography>
-            <Button color="primary" variant="contained" onClick={handleSignUp}>
-              Sign Up
-            </Button>
-          </div>
-        </Paper>
-      </div>
-    </div>
-  );
-}
+import { auth, snapshotToArray, db } from "./firebase";
+import { Lists } from "./Lists";
+import { AddList } from "./Lists";
+import { AddCard } from "./AddCard";
+import GlobalFeed from "./globalFeed";
+import { Route } from "react-router-dom";
 
 export function App(props) {
-  const [drawer_open, setDrawerOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [lists, setLists] = useState([]);
+  const [listID, setListID] = useState("");
+  const [addCardOpen, setAddCardOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(u => {
@@ -170,6 +32,16 @@ export function App(props) {
     });
     return unsubscribe;
   }, [props.history]);
+  useEffect(() => {
+    if (user) {
+      db.collection("lists")
+        .where("user", "==", user.uid)
+        .onSnapshot(snapshot => {
+          const updatedLists = snapshotToArray(snapshot);
+          setLists(updatedLists);
+        });
+    }
+  }, [user]);
 
   const handleSignOut = () => {
     auth
@@ -189,23 +61,26 @@ export function App(props) {
     <div>
       <AppBar position="static" color="primary">
         <Toolbar>
-          <IconButton
-            color="inherit"
-            onClick={() => {
-              setDrawerOpen(true);
-            }}
-          >
-            <MenuIcon />
+          <IconButton color="inherit" to="/app/" component={Link}>
+            {" "}
+            favorites
+            <PersonIcon />
+          </IconButton>
+          <IconButton color="inherit" to="/app/globalFeed/" component={Link}>
+            {" "}
+            feed
+            <PublicIcon />
+          </IconButton>
+          <IconButton color="inherit" onClick={() => setDialogOpen(true)}>
+            {" "}
+            new
+            <AddIcon />
           </IconButton>
           <Typography
-            variant="h6"
             color="inherit"
-            style={{ flexGrow: 1, marginLeft: "30px" }}
+            style={{ marginRight: "15px", flexGrow: 1, textAlign: "right" }}
           >
-            My App
-          </Typography>
-          <Typography color="inherit" style={{ marginRight: "30px" }}>
-            Hi! {user.email}
+            {user.email}
           </Typography>
           <Button color="inherit" onClick={handleSignOut}>
             {" "}
@@ -213,14 +88,33 @@ export function App(props) {
           </Button>
         </Toolbar>
       </AppBar>
-      <Drawer
-        open={drawer_open}
-        onClose={() => {
-          setDrawerOpen(false);
+      <Route
+        exact
+        path="/app/"
+        render={() => {
+          return <Lists user={user} lists={lists} />;
         }}
-      >
-        <div>Hello</div>
-      </Drawer>
+      />
+      <AddList
+        setCardOpen={setAddCardOpen}
+        setListID={setListID}
+        user={user}
+        dialogOpen={dialogOpen}
+        onClose={() => {
+          setDialogOpen(false);
+        }}
+      />
+      <AddCard
+        listID={listID}
+        addDialogOpen={addCardOpen}
+        onClose={() => setAddCardOpen(false)}
+      />
+      <Route
+        path="/app/globalFeed"
+        render={() => {
+          return <GlobalFeed user={user} />;
+        }}
+      />
     </div>
   );
 }
